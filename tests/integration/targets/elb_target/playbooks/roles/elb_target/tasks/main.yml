@@ -92,7 +92,7 @@
             cidr_ip: 0.0.0.0/0
       register: sg
 
-    - name: set up testing target group (type=instance)
+    - name: set up testing target group (type=ip)
       elb_target_group:
         name: "{{ tg_name }}"
         health_check_port: 80
@@ -101,6 +101,20 @@
         vpc_id: '{{ vpc.vpc.id }}'
         state: present
         target_type: instance
+        tags:
+          Description: "Created by {{ resource_prefix }}"
+    
+    - name: modify up testing target group (type=instance) - preserver-ip-client
+      elb_target_group:
+        name: "{{ tg_name }}"
+        health_check_port: 80
+        protocol: http
+        port: 80
+        vpc_id: '{{ vpc.vpc.id }}'
+        state: present
+        target_type: instance
+        modify_targets: true
+        preserve_client_ip_enabled: 'false'
         tags:
           Description: "Created by {{ resource_prefix }}"
 

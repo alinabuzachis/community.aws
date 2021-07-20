@@ -161,6 +161,14 @@ options:
       - The identifier of the virtual private cloud (VPC). Required when I(state) is C(present).
     required: false
     type: str
+  preserve_client_ip_enabled:
+    description:
+      - Indicates whether client IP preservation is enabled.
+      - The default is disabled if the target group type is C(ip) address and the target group protocol is C(tcp) or C(tls).
+        Otherwise, the default is enabled. Client IP preservation cannot be disabled for C(udp) and C(tcp_udp) target groups. 
+    type: bool
+    required: false
+    version_added: 2.0.0
   wait:
     description:
       - Whether or not to wait for the target group.
@@ -383,7 +391,7 @@ vpc_id:
     type: str
     sample: vpc-0123456
 '''
-
+import q
 import time
 
 try:
@@ -400,11 +408,13 @@ from ansible_collections.amazon.aws.plugins.module_utils.ec2 import AWSRetry
 from ansible_collections.amazon.aws.plugins.module_utils.ec2 import boto3_tag_list_to_ansible_dict
 from ansible_collections.amazon.aws.plugins.module_utils.ec2 import compare_aws_tags
 
-
+@q
 def get_tg_attributes(connection, module, tg_arn):
     try:
         _attributes = connection.describe_target_group_attributes(TargetGroupArn=tg_arn, aws_retry=True)
+        q("attributes inside 1", _attributes)
         tg_attributes = boto3_tag_list_to_ansible_dict(_attributes['Attributes'])
+        q("attributes inside 2", tg_attributes)
     except (botocore.exceptions.ClientError, botocore.exceptions.BotoCoreError) as e:
         module.fail_json_aws(e, msg="Couldn't get target group attributes")
 
@@ -459,7 +469,7 @@ def fail_if_ip_target_type_not_supported(module):
         module.fail_json(msg="target_type ip requires botocore version 1.7.2 or later. Version %s is installed" %
                          botocore.__version__)
 
-
+@q
 def create_or_update_target_group(connection, module):
 
     changed = False
@@ -480,6 +490,7 @@ def create_or_update_target_group(connection, module):
     stickiness_type = module.params.get("stickiness_type")
     stickiness_app_cookie_duration = module.params.get("stickiness_app_cookie_duration")
     stickiness_app_cookie_name = module.params.get("stickiness_app_cookie_name")
+    preserve_client_ip_enabled = module.params.get("preserve_client_ip_enabled")
 
     health_option_keys = [
         "health_check_path", "health_check_protocol", "health_check_interval", "health_check_timeout",
@@ -754,6 +765,7 @@ def create_or_update_target_group(connection, module):
 
     # Get current attributes
     current_tg_attributes = get_tg_attributes(connection, module, tg['TargetGroupArn'])
+    q(current_tg_attributes)
 
     if deregistration_delay_timeout is not None:
         if str(deregistration_delay_timeout) != current_tg_attributes['deregistration_delay_timeout_seconds']:
@@ -773,6 +785,10 @@ def create_or_update_target_group(connection, module):
     if stickiness_app_cookie_duration is not None:
         if str(stickiness_app_cookie_duration) != current_tg_attributes['stickiness_app_cookie_duration_seconds']:
             update_attributes.append({'Key': 'stickiness.app_cookie.duration_seconds', 'Value': str(stickiness_app_cookie_duration)})
+    if preserve_client_ip_enabled is not None:
+        if target_type not in ('udp', 'tcp_udp'):
+            if str(preserve_client_ip_enabled) != current_tg_attributes.get('preserve_client_ip.enabled'):
+                update_attributes.append({'Key': 'preserve_client_ip.enabled', 'Value': str(preserve_client_ip_enabled)})
 
     if update_attributes:
         try:
@@ -862,6 +878,7 @@ def main():
         targets=dict(type='list', elements='dict'),
         unhealthy_threshold_count=dict(type='int'),
         vpc_id=dict(),
+        preserve_client_ip_enabled=dict(type='str'),
         wait_timeout=dict(type='int', default=200),
         wait=dict(type='bool', default=False)
     )
