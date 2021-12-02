@@ -5,7 +5,7 @@
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
-
+# just a change
 DOCUMENTATION = '''
 module: ec2_vpc_vgw
 short_description: Create and delete AWS VPN Virtual Gateways.

@@ -15,9 +15,15 @@ from ansible_collections.amazon.aws.plugins.module_utils.tagging import boto3_ta
 from ansible_collections.amazon.aws.plugins.module_utils.tagging import compare_aws_tags
 
 
+# just a change
+
+
 def manage_tags(module, client, resource_type, resource_id, new_tags, purge_tags):
     if new_tags is None:
         return False
+    
+    
+    # just a change
 
     old_tags = get_tags(module, client, resource_type, resource_id)
     tags_to_set, tags_to_delete = compare_aws_tags(old_tags, new_tags, purge_tags=purge_tags)

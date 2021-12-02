@@ -6,7 +6,7 @@
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
-
+# just a test
 DOCUMENTATION = '''
 ---
 module: ec2_ami_copy
