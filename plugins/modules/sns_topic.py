@@ -293,6 +293,7 @@ except ImportError:
 from ansible_collections.amazon.aws.plugins.module_utils.core import AnsibleAWSModule
 from ansible_collections.amazon.aws.plugins.module_utils.core import scrub_none_parameters
 from ansible_collections.amazon.aws.plugins.module_utils.ec2 import compare_policies
+from ansible_collections.amazon.aws.plugins.module_utils.ec2 import ansible_dict_to_boto3_tag_list
 from ansible_collections.community.aws.plugins.module_utils.sns import list_topics
 from ansible_collections.community.aws.plugins.module_utils.sns import topic_arn_lookup
 from ansible_collections.community.aws.plugins.module_utils.sns import compare_delivery_policies
@@ -314,6 +315,8 @@ class SnsTopicManager(object):
                  delivery_policy,
                  subscriptions,
                  purge_subscriptions,
+                 tags,
+                 purge_tags,
                  check_mode):
 
         self.connection = module.client('sns')
@@ -334,6 +337,8 @@ class SnsTopicManager(object):
         self.topic_deleted = False
         self.topic_arn = None
         self.attributes_set = []
+        self.tags = tags
+        self.purge_tags = purge_tags
 
     def _create_topic(self):
         attributes = {'FifoTopic': 'false'}
@@ -343,6 +348,9 @@ class SnsTopicManager(object):
             attributes['FifoTopic'] = 'true'
             if not self.name.endswith('.fifo'):
                 self.name = self.name + '.fifo'
+        
+        if self.tags:
+            tags = ansible_dict_to_boto3_tag_list(self.tags)
 
         if not self.check_mode:
             try:
@@ -462,6 +470,10 @@ class SnsTopicManager(object):
         elif self.display_name or self.policy or self.delivery_policy:
             self.module.fail_json(msg="Cannot set display name, policy or delivery policy for SNS topics not owned by this account")
         changed |= self._set_topic_subs()
+        
+        # Check tagging
+        changed |= update_tags(self.connection, self.module, self.topic_arn)
+
         return changed
 
     def ensure_gone(self):
@@ -514,6 +526,8 @@ def main():
         delivery_policy=dict(type='dict', options=delivery_args),
         subscriptions=dict(default=[], type='list', elements='dict'),
         purge_subscriptions=dict(type='bool', default=True),
+        tags=dict(type='dict'),
+        purge_tags=dict(type='bool', default=True),
     )
 
     module = AnsibleAWSModule(argument_spec=argument_spec,
@@ -528,6 +542,8 @@ def main():
     subscriptions = module.params.get('subscriptions')
     purge_subscriptions = module.params.get('purge_subscriptions')
     check_mode = module.check_mode
+    tags = module.params.get('tags')
+    purge_tags = module.params.get('purge_tags')
 
     sns_topic = SnsTopicManager(module,
                                 name,
@@ -538,6 +554,8 @@ def main():
                                 delivery_policy,
                                 subscriptions,
                                 purge_subscriptions,
+                                tags,
+                                purge_tags,
                                 check_mode)
 
     if state == 'present':
