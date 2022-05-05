@@ -585,7 +585,7 @@ def remove_option_group(client, module):
     # Check if there is an existing options group
     existing_option_group = get_option_group(client, module)
 
-    if existing_option_group:
+    if existing_option_group:  # test
 
         if module.check_mode:
             return True, {}
