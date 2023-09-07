@@ -161,8 +161,6 @@ action_groups:
   - iam_managed_policy
   - iam_mfa_device_info
   - iam_password_policy
-  - iam_role
-  - iam_role_info
   - iam_saml_federation
   - iam_server_certificate
   - iam_server_certificate_info
@@ -506,6 +504,10 @@ plugin_routing:
       redirect: amazon.aws.route53_info
     route53_zone:
       redirect: amazon.aws.route53_zone
+    iam_role:
+      redirect: amazon.aws.iam_role
+    iam_role_info:
+      redirect: amazon.aws.iam_role_info
   module_utils:
     route53:
       redirect: amazon.aws.route53
