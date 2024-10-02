@@ -54,6 +54,12 @@
     name: '{{ vpc_name_b }}'
   ignore_errors: True
 
+- name: Gather info about all transit gateways
+  community.aws.ec2_transit_gateway_info:
+    transit_gateway_ids:
+      - '{{ tgw_id }}'
+      - '{{ tgw_id_2 }}'
+
 - name: Delete Transit Gateways
   community.aws.ec2_transit_gateway:
     state: absent

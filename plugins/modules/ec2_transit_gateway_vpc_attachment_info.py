@@ -143,7 +143,7 @@ transit_gateway_attachments:
 """
 
 from ansible_collections.community.aws.plugins.module_utils.modules import AnsibleCommunityAWSModule as AnsibleAWSModule
-from ansible_collections.community.aws.plugins.module_utils.transitgateway import TransitGatewayVpcAttachmentManager
+from ansible_collections.community.aws.plugins.module_utils.transitgateway import AttachmentValidator
 
 
 def main():
@@ -165,27 +165,68 @@ def main():
         mutually_exclusive=mutually_exclusive,
     )
 
+    # name = module.params.get("name", None)
+    # id = module.params.get("id", None)
+    # opt_filters = module.params.get("filters", None)
+     # Retrieve input parameters from the module
     name = module.params.get("name", None)
-    id = module.params.get("id", None)
+    attachment_id = module.params.get("id", None)
     opt_filters = module.params.get("filters", None)
+    include_deleted = module.params.get("include_deleted", False)
 
-    search_manager = TransitGatewayVpcAttachmentManager(module=module)
-    filters = dict()
+    client = module.client("ec2")
 
+    # search_manager = TransitGatewayVpcAttachmentManager(client, module=module)
+    # filters = dict()
+
+    # if name:
+    #     filters["tag:Name"] = name
+
+    # if not module.params.get("include_deleted"):
+    #     # Attachments lurk in a 'deleted' state, for a while, ignore them so we
+    #     # can reuse the names
+    #     filters["state"] = search_manager.get_states()
+
+    # if opt_filters:
+    #     filters.update(opt_filters)
+
+    # attachments = search_manager.list(filters=filters, id=id)
+
+    # module.exit_json(changed=False, attachments=attachments, filters=filters)
+    # Use the AttachmentValidator to validate and find existing attachments if required
+    validator = AttachmentValidator(client, module)
+    filters = {}
+
+    # Add filter by name if provided
     if name:
         filters["tag:Name"] = name
 
-    if not module.params.get("include_deleted"):
-        # Attachments lurk in a 'deleted' state, for a while, ignore them so we
-        # can reuse the names
-        filters["state"] = search_manager.get_states()
+    # Include only active states if "include_deleted" is False
+    if not include_deleted:
+        # Use the helper method to get states that are not "deleted"
+        filters["state"] = "available"
 
+    # Include any additional filters provided by the user
     if opt_filters:
         filters.update(opt_filters)
 
-    attachments = search_manager.list(filters=filters, id=id)
+    # Find the existing attachments based on the provided filters and ID using AttachmentValidator
+    attachment_ids = []
+    if attachment_id:
+        attachment_ids.append(attachment_id)
+    else:
+        attachment = validator.find_existing_attachment(filters=filters)
+        if attachment:
+            attachment_ids.append(attachment["TransitGatewayAttachmentId"])
 
+    # Prepare the results
+    attachments = []
+    for attach_id in attachment_ids:
+        attachments.append({"transit_gateway_attachment_id": attach_id})
+
+    # Return the results as output
     module.exit_json(changed=False, attachments=attachments, filters=filters)
+
 
 
 if __name__ == "__main__":
